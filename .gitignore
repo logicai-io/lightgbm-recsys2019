@@ -403,3 +403,4 @@ lightgbm.Rcheck/
 # GraphViz artifacts
 *.gv
 *.gv.*
+.idea/
