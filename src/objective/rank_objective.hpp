@@ -331,13 +331,8 @@ class LambdarankMRR: public ObjectiveFunction {
         for (data_size_t j = 0; j < i; ++j) {
             // skip same data
             if (i == j) { continue; }
-
             const data_size_t low = sorted_idx[j];
             const double low_score = score[low];
-
-            // only consider pair with different label
-//            if (high_label <= low_label || low_score == kMinScore) { continue; }
-
             const double delta_score = high_score - low_score;
 
             double delta_pair_MRR = (((1.0f/(static_cast<double>(j + 1.0f))) - (1.0f / (static_cast<double>(i + 1.0f)))));
@@ -345,13 +340,15 @@ class LambdarankMRR: public ObjectiveFunction {
             // calculate lambda for this pair
             double p_lambda = GetSigmoid(delta_score);
             double p_hessian = p_lambda * (2.0f - p_lambda);
+
             // update
             p_lambda *= -delta_pair_MRR;
             p_hessian *= 2 * delta_pair_MRR;
-            high_sum_lambda += p_lambda;
-            high_sum_hessian += p_hessian;
             lambdas[low] -= static_cast<score_t>(p_lambda);
             hessians[low] += static_cast<score_t>(p_hessian);
+
+            high_sum_lambda += p_lambda;
+            high_sum_hessian += p_hessian;
         }
         // update
         lambdas[high] += static_cast<score_t>(high_sum_lambda);
@@ -366,79 +363,11 @@ class LambdarankMRR: public ObjectiveFunction {
         }
 
 //        printf("------------\n");
+//        printf("best index=%d\n", r);
 //        for (data_size_t i = 0; i < cnt; ++i) {
 //            printf("%d %.4f %.4f %.4f %.4f\n", i, label[sorted_idx[i]], score[sorted_idx[i]], lambdas[sorted_idx[i]], hessians[sorted_idx[i]]);
 //        }
     }
-
-    inline void GetGradientsForOneQueryBackup(const double* score,
-              score_t* lambdas, score_t* hessians, data_size_t query_id) const {
-    // get doc boundary for current query
-    const data_size_t start = query_boundaries_[query_id];
-    const data_size_t cnt =
-      query_boundaries_[query_id + 1] - query_boundaries_[query_id];
-    // add pointers with offset
-    const label_t* label = label_ + start;
-    score += start;
-    lambdas += start;
-    hessians += start;
-    // initialize with zero
-    for (data_size_t i = 0; i < cnt; ++i) {
-      lambdas[i] = 0.0f;
-      hessians[i] = 0.0f;
-    }
-//    // get sorted indices for scores
-    std::vector<data_size_t> sorted_idx;
-    for (data_size_t i = 0; i < cnt; ++i) {
-      sorted_idx.emplace_back(i);
-    }
-    std::stable_sort(sorted_idx.begin(), sorted_idx.end(),
-                     [score](data_size_t a, data_size_t b) { return score[a] > score[b]; });
-//
-//    // get the rank of the highest label (in this case there is only one relevant item)
-//    // this should simplify the calculation and maybe we can skip the inner loop
-    int r = 0;
-    for (data_size_t i = 0; i < cnt; ++i) {
-        if (label[sorted_idx[i]] > 0.1f) {
-            r = i;
-            break;
-        }
-    }
-
-    // iterate only elements which are not relevant (all except r index element)
-    for (data_size_t j = 0; j < cnt; ++j) {
-      const data_size_t low = sorted_idx[j];
-      const data_size_t high = sorted_idx[r];
-      if (j == r || low > high) { continue; }
-      const double high_score = score[high];
-      const double low_score = score[low];
-      const double delta_score = high_score - low_score;
-      printf("delta_score=%.4f\n", delta_score);
-      const double delta_rr = 1.0f / (((static_cast<double>(low) + 1.0f)) - (1.0f / (static_cast<double>(high) + 1.0f)));
-      double p_lambda = 1.0f / (1.0f + std::exp(delta_score)); //GetSigmoid(delta_score);
-      double p_hessian = p_lambda * (2.0f - p_lambda);
-      // update
-      p_lambda *= delta_rr;
-      p_lambda = fabs(p_lambda);
-      p_hessian *= 2 * delta_rr;
-      lambdas[low] = static_cast<score_t>(p_lambda);
-      hessians[low] = static_cast<score_t>(p_hessian);
-    }
-
-    // if need weights
-    if (weights_ != nullptr) {
-      for (data_size_t i = 0; i < cnt; ++i) {
-        lambdas[i] = static_cast<score_t>(lambdas[i] * weights_[start + i]);
-        hessians[i] = static_cast<score_t>(hessians[i] * weights_[start + i]);
-      }
-    }
-
-    printf("------------\n");
-    for (data_size_t i = 0; i < cnt; ++i) {
-        printf("%d %.4f %.4f %.4f %.4f\n", i, label[sorted_idx[i]], score[sorted_idx[i]], lambdas[sorted_idx[i]], hessians[sorted_idx[i]]);
-    }
-  }
-
 
   inline double GetSigmoid(double score) const {
     if (score <= min_sigmoid_input_) {
