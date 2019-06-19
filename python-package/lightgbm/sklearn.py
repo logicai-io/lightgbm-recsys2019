@@ -433,12 +433,17 @@ class LGBMModel(_LGBMModelBase):
                 self._objective = "regression"
             elif isinstance(self, LGBMClassifier):
                 self._objective = "binary"
-            elif isinstance(self, LGBMRanker):
-                self._objective = "lambdarank"
+            elif isinstance(self, LGBMRankerOpt):
+                self._objective = "lambdarank_opt"
             elif isinstance(self, LGBMRankerMRR):
                 self._objective = "lambdarank_mrr"
+            elif isinstance(self, LGBMRankerMRR2):
+                self._objective = "lambdarank_mrr2"
+            elif isinstance(self, LGBMRanker):
+                self._objective = "lambdarank"
             else:
                 raise ValueError("Unknown LGBMModel type.")
+        print(self._objective)
         if callable(self._objective):
             self._fobj = _objective_function_wrapper(self._objective)
         else:
@@ -473,6 +478,8 @@ class LGBMModel(_LGBMModelBase):
                 elif isinstance(self, LGBMClassifier):
                     original_metric = "multi_logloss" if self._n_classes > 2 else "binary_logloss"
                 elif isinstance(self, LGBMRanker):
+                    original_metric = "ndcg"
+                elif isinstance(self, LGBMRankerOpt):
                     original_metric = "ndcg"
                 elif isinstance(self, LGBMRankerMRR):
                     original_metric = "ndcg"
@@ -875,4 +882,10 @@ class LGBMRanker(LGBMModel):
 
 
 class LGBMRankerMRR(LGBMRanker):
+    pass
+
+class LGBMRankerMRR2(LGBMRanker):
+    pass
+
+class LGBMRankerOpt(LGBMRanker):
     pass
