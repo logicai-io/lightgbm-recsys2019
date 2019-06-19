@@ -433,12 +433,12 @@ class LGBMModel(_LGBMModelBase):
                 self._objective = "regression"
             elif isinstance(self, LGBMClassifier):
                 self._objective = "binary"
-            elif isinstance(self, LGBMRankerOpt):
-                self._objective = "lambdarank_opt"
             elif isinstance(self, LGBMRankerMRR):
                 self._objective = "lambdarank_mrr"
             elif isinstance(self, LGBMRankerMRR2):
                 self._objective = "lambdarank_mrr2"
+            elif isinstance(self, LGBMRankerMRR3):
+                self._objective = "lambdarank_mrr3"
             elif isinstance(self, LGBMRanker):
                 self._objective = "lambdarank"
             else:
@@ -885,6 +885,9 @@ class LGBMRankerMRR(LGBMRanker):
     pass
 
 class LGBMRankerMRR2(LGBMRanker):
+    pass
+
+class LGBMRankerMRR3(LGBMRanker):
     pass
 
 class LGBMRankerOpt(LGBMRanker):

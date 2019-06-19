@@ -26,12 +26,12 @@ ObjectiveFunction* ObjectiveFunction::CreateObjectiveFunction(const std::string&
     return new BinaryLogloss(config);
   } else if (type == std::string("lambdarank")) {
     return new LambdarankNDCG(config);
-  } else if (type == std::string("lambdarank_opt")) {
-    return new LambdarankNDCGOpt(config);
   } else if (type == std::string("lambdarank_mrr")) {
     return new LambdarankMRR(config);
   } else if (type == std::string("lambdarank_mrr2")) {
     return new LambdarankMRR2(config);
+  } else if (type == std::string("lambdarank_mrr3")) {
+    return new LambdarankMRR3(config);
   } else if (type == std::string("multiclass") || type == std::string("softmax")) {
     return new MulticlassSoftmax(config);
   } else if (type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr")) {
@@ -71,10 +71,12 @@ ObjectiveFunction* ObjectiveFunction::CreateObjectiveFunction(const std::string&
     return new BinaryLogloss(strs);
   } else if (type == std::string("lambdarank")) {
     return new LambdarankNDCG(strs);
-  } else if (type == std::string("lambdarank_opt")) {
-    return new LambdarankNDCGOpt(strs);
   } else if (type == std::string("lambdarank_mrr")) {
     return new LambdarankMRR(strs);
+  } else if (type == std::string("lambdarank_mrr2")) {
+    return new LambdarankMRR2(strs);
+  } else if (type == std::string("lambdarank_mrr3")) {
+    return new LambdarankMRR3(strs);
   } else if (type == std::string("multiclass")) {
     return new MulticlassSoftmax(strs);
   } else if (type == std::string("multiclassova")) {

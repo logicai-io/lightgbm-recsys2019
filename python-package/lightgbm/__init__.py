@@ -15,7 +15,7 @@ import warnings
 from platform import system
 
 try:
-    from .sklearn import LGBMModel, LGBMRegressor, LGBMClassifier, LGBMRanker, LGBMRankerMRR, LGBMRankerMRR2, LGBMRankerOpt
+    from .sklearn import LGBMModel, LGBMRegressor, LGBMClassifier, LGBMRanker, LGBMRankerMRR, LGBMRankerMRR2, LGBMRankerMRR3
 except ImportError:
     pass
 try:

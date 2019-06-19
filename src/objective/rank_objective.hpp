@@ -238,14 +238,14 @@ namespace LightGBM {
     };
 
 
-    class LambdarankNDCGOpt : public ObjectiveFunction {
+    class LambdarankMRR3 : public ObjectiveFunction {
     public:
-        explicit LambdarankNDCGOpt(const Config &config) {
+        explicit LambdarankMRR3(const Config &config) {
             sigmoid_ = static_cast<double>(config.sigmoid);
             label_gain_ = config.label_gain;
             // initialize DCG calculator
-            DCGCalculator::DefaultLabelGain(&label_gain_);
-            DCGCalculator::Init(label_gain_);
+            MRRCalculator::DefaultLabelGain(&label_gain_);
+            MRRCalculator::Init(label_gain_);
             // will optimize NDCG@optimize_pos_at_
             optimize_pos_at_ = config.max_position;
             sigmoid_table_.clear();
@@ -255,17 +255,17 @@ namespace LightGBM {
             }
         }
 
-        explicit LambdarankNDCGOpt(const std::vector<std::string> &) {
+        explicit LambdarankMRR3(const std::vector<std::string> &) {
         }
 
-        ~LambdarankNDCGOpt() {
+        ~LambdarankMRR3() {
         }
 
         void Init(const Metadata &metadata, data_size_t num_data) override {
             num_data_ = num_data;
             // get label
             label_ = metadata.label();
-            DCGCalculator::CheckLabel(label_, num_data_);
+            MRRCalculator::CheckLabel(label_, num_data_);
             // get weights
             weights_ = metadata.weights();
             // get boundries
@@ -278,7 +278,7 @@ namespace LightGBM {
             inverse_max_dcgs_.resize(num_queries_);
 #pragma omp parallel for schedule(static)
             for (data_size_t i = 0; i < num_queries_; ++i) {
-                inverse_max_dcgs_[i] = DCGCalculator::CalMaxDCGAtK(optimize_pos_at_,
+                inverse_max_dcgs_[i] = MRRCalculator::CalMaxDCGAtK(optimize_pos_at_,
                                                                    label_ + query_boundaries_[i],
                                                                    query_boundaries_[i + 1] - query_boundaries_[i]);
 
@@ -330,54 +330,55 @@ namespace LightGBM {
                 worst_idx -= 1;
             }
             const double wrost_score = score[sorted_idx[worst_idx]];
+            // start accmulate lambdas by pairs
+            for (data_size_t i = 0; i < cnt; ++i) {
+                const data_size_t high = sorted_idx[i];
+                const int high_label = static_cast<int>(label[high]);
+                const double high_score = score[high];
+                if (high_score == kMinScore) { continue; }
+                const double high_label_gain = label_gain_[high_label];
+                const double high_discount = MRRCalculator::GetDiscount(i);;
+                double high_sum_lambda = 0.0;
+                double high_sum_hessian = 0.0;
+                for (data_size_t j = 0; j < cnt; ++j) {
+                    // skip same data
+                    if (i == j) { continue; }
 
-            // we could remove the outer loop because there is only 1 positive which should be at first place
-            data_size_t i = 0;
-            const data_size_t high = sorted_idx[i];
-            const int high_label = static_cast<int>(label[high]);
-            const double high_score = score[high];
-            const double high_label_gain = label_gain_[high_label];
-            const double high_discount = DCGCalculator::GetDiscount(i);
-            double high_sum_lambda = 0.0;
-            double high_sum_hessian = 0.0;
-            for (data_size_t j = 0; j < cnt; ++j) {
-                // skip same data
-                if (i == j) { continue; }
+                    const data_size_t low = sorted_idx[j];
+                    const int low_label = static_cast<int>(label[low]);
+                    const double low_score = score[low];
+                    // only consider pair with different label
+                    if (high_label <= low_label || low_score == kMinScore) { continue; }
 
-                const data_size_t low = sorted_idx[j];
-                const int low_label = static_cast<int>(label[low]);
-                const double low_score = score[low];
-                // only consider pair with different label
-                if (high_label <= low_label || low_score == kMinScore) { continue; }
+                    const double delta_score = high_score - low_score;
 
-                const double delta_score = high_score - low_score;
-
-                const double low_label_gain = label_gain_[low_label];
-                const double low_discount = DCGCalculator::GetDiscount(j);
-                // get dcg gap
-                const double dcg_gap = high_label_gain - low_label_gain;
-                // get discount of this pair
-                const double paired_discount = fabs(high_discount - low_discount);
-                // get delta NDCG
-                double delta_pair_NDCG = dcg_gap * paired_discount * inverse_max_dcg;
-                // regular the delta_pair_NDCG by score distance
-                if (high_label != low_label && best_score != wrost_score) {
-                    delta_pair_NDCG /= (0.01f + fabs(delta_score));
+                    const double low_label_gain = label_gain_[low_label];
+                    const double low_discount = MRRCalculator::GetDiscount(j);
+                    // get dcg gap
+                    const double dcg_gap = high_label_gain - low_label_gain;
+                    // get discount of this pair
+                    const double paired_discount = fabs(high_discount - low_discount);
+                    // get delta NDCG
+                    double delta_pair_NDCG = dcg_gap * paired_discount * inverse_max_dcg;
+                    // regular the delta_pair_NDCG by score distance
+                    if (high_label != low_label && best_score != wrost_score) {
+                        delta_pair_NDCG /= (0.01f + fabs(delta_score));
+                    }
+                    // calculate lambda for this pair
+                    double p_lambda = GetSigmoid(delta_score);
+                    double p_hessian = p_lambda * (2.0f - p_lambda);
+                    // update
+                    p_lambda *= -delta_pair_NDCG;
+                    p_hessian *= 2 * delta_pair_NDCG;
+                    high_sum_lambda += p_lambda;
+                    high_sum_hessian += p_hessian;
+                    lambdas[low] -= static_cast<score_t>(p_lambda);
+                    hessians[low] += static_cast<score_t>(p_hessian);
                 }
-                // calculate lambda for this pair
-                double p_lambda = GetSigmoid(delta_score);
-                double p_hessian = p_lambda * (2.0f - p_lambda);
                 // update
-                p_lambda *= -delta_pair_NDCG;
-                p_hessian *= 2 * delta_pair_NDCG;
-                high_sum_lambda += p_lambda;
-                high_sum_hessian += p_hessian;
-                lambdas[low] -= static_cast<score_t>(p_lambda);
-                hessians[low] += static_cast<score_t>(p_hessian);
+                lambdas[high] += static_cast<score_t>(high_sum_lambda);
+                hessians[high] += static_cast<score_t>(high_sum_hessian);
             }
-            // update
-            lambdas[high] += static_cast<score_t>(high_sum_lambda);
-            hessians[high] += static_cast<score_t>(high_sum_hessian);
             // if need weights
             if (weights_ != nullptr) {
                 for (data_size_t i = 0; i < cnt; ++i) {
@@ -416,7 +417,7 @@ namespace LightGBM {
         }
 
         const char *GetName() const override {
-            return "lambdarank";
+            return "lambdarank_mrr3";
         }
 
         std::string ToString() const override {
@@ -765,8 +766,6 @@ namespace LightGBM {
                 }
             }
 
-            // printf("Current rank = %d\n", r);
-
             // start accmulate lambdas by pairs
             for (data_size_t i = 0; i < cnt; ++i) {
                 const data_size_t high = sorted_idx[i];
@@ -774,7 +773,6 @@ namespace LightGBM {
                 const double high_score = score[high];
                 if (high_score == kMinScore) { continue; }
                 const double high_label_gain = label_gain_[high_label];
-                const double high_discount = DCGCalculator::GetDiscount(i);
                 double high_sum_lambda = 0.0;
                 double high_sum_hessian = 0.0;
                 for (data_size_t j = 0; j < cnt; ++j) {
@@ -783,13 +781,20 @@ namespace LightGBM {
                     const data_size_t low = sorted_idx[j];
                     const int low_label = static_cast<int>(label[low]);
                     const double low_score = score[low];
+
+                    // if ((low_score < high_score) || (low_label == high_label)) {continue;}
                     // only consider pair with different label
-                    if (high_label <= low_label || low_score == kMinScore) { continue; }
-
+                    
+                    // MORE OR LESS ORIGINAL VERSION
+                    //if (high_label <= low_label || low_score == kMinScore) { continue; }
+                    // const double delta_score = high_score - low_score; 
+                    // double delta_pair_NDCG = fabs(((1.0f / (static_cast<double>(j + 1.0f))) -
+                                                //    (1.0f / (static_cast<double>(i + 1.0f)))));
+                    if (high_label <= low_label) { continue; }
                     const double delta_score = high_score - low_score;
-
-                    double delta_pair_NDCG = fabs(((1.0f / (static_cast<double>(j + 1.0f))) -
-                                                   (1.0f / (static_cast<double>(i + 1.0f)))));
+                    double delta_pair_NDCG = 0;
+                    delta_pair_NDCG = fabs(((1.0f / (static_cast<double>(j + 1.0f))) -
+                                            (1.0f / (static_cast<double>(i + 1.0f)))));
 
                     // calculate lambda for this pair
                     double p_lambda = GetSigmoid(delta_score);
@@ -806,6 +811,7 @@ namespace LightGBM {
                 lambdas[high] += static_cast<score_t>(high_sum_lambda);
                 hessians[high] += static_cast<score_t>(high_sum_hessian);
             }
+
             // if need weights
             if (weights_ != nullptr) {
                 for (data_size_t i = 0; i < cnt; ++i) {
@@ -817,7 +823,7 @@ namespace LightGBM {
             // printf("------------\n");
             // printf("best score=%.4f best index %d\n", best_score, sorted_idx[0]);
             // for (data_size_t i = 0; i < cnt; ++i) {
-            //     printf("%d %d %.4f %.4f %.4f %.4f\n", i, sorted_idx[i], label[sorted_idx[i]], score[sorted_idx[i]], lambdas[sorted_idx[i]], hessians[sorted_idx[i]]);
+                // printf("%d %d %.4f %.4f %.4f %.4f\n", i, sorted_idx[i], label[sorted_idx[i]], score[sorted_idx[i]], lambdas[sorted_idx[i]], hessians[sorted_idx[i]]);
             // }
 
             // printf("------------\n");
