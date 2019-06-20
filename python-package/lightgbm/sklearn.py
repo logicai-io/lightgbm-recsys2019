@@ -439,6 +439,8 @@ class LGBMModel(_LGBMModelBase):
                 self._objective = "lambdarank_mrr2"
             elif isinstance(self, LGBMRankerMRR3):
                 self._objective = "lambdarank_mrr3"
+            elif isinstance(self, LGBMRankerMRR4):
+                self._objective = "lambdarank_mrr4"
             elif isinstance(self, LGBMRanker):
                 self._objective = "lambdarank"
             else:
@@ -888,6 +890,9 @@ class LGBMRankerMRR2(LGBMRanker):
     pass
 
 class LGBMRankerMRR3(LGBMRanker):
+    pass
+
+class LGBMRankerMRR4(LGBMRanker):
     pass
 
 class LGBMRankerOpt(LGBMRanker):

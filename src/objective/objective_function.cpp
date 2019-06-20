@@ -32,6 +32,8 @@ ObjectiveFunction* ObjectiveFunction::CreateObjectiveFunction(const std::string&
     return new LambdarankMRR2(config);
   } else if (type == std::string("lambdarank_mrr3")) {
     return new LambdarankMRR3(config);
+  } else if (type == std::string("lambdarank_mrr4")) {
+    return new LambdarankMRR4(config);
   } else if (type == std::string("multiclass") || type == std::string("softmax")) {
     return new MulticlassSoftmax(config);
   } else if (type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr")) {
@@ -77,6 +79,8 @@ ObjectiveFunction* ObjectiveFunction::CreateObjectiveFunction(const std::string&
     return new LambdarankMRR2(strs);
   } else if (type == std::string("lambdarank_mrr3")) {
     return new LambdarankMRR3(strs);
+  } else if (type == std::string("lambdarank_mrr4")) {
+    return new LambdarankMRR4(strs);
   } else if (type == std::string("multiclass")) {
     return new MulticlassSoftmax(strs);
   } else if (type == std::string("multiclassova")) {
