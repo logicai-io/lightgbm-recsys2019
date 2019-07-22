@@ -433,10 +433,19 @@ class LGBMModel(_LGBMModelBase):
                 self._objective = "regression"
             elif isinstance(self, LGBMClassifier):
                 self._objective = "binary"
+            elif isinstance(self, LGBMRankerMRR):
+                self._objective = "lambdarank_mrr"
+            elif isinstance(self, LGBMRankerMRR2):
+                self._objective = "lambdarank_mrr2"
+            elif isinstance(self, LGBMRankerMRR3):
+                self._objective = "lambdarank_mrr3"
+            elif isinstance(self, LGBMRankerMRR4):
+                self._objective = "lambdarank_mrr4"
             elif isinstance(self, LGBMRanker):
                 self._objective = "lambdarank"
             else:
                 raise ValueError("Unknown LGBMModel type.")
+        print(self._objective)
         if callable(self._objective):
             self._fobj = _objective_function_wrapper(self._objective)
         else:
@@ -471,6 +480,10 @@ class LGBMModel(_LGBMModelBase):
                 elif isinstance(self, LGBMClassifier):
                     original_metric = "multi_logloss" if self._n_classes > 2 else "binary_logloss"
                 elif isinstance(self, LGBMRanker):
+                    original_metric = "ndcg"
+                elif isinstance(self, LGBMRankerOpt):
+                    original_metric = "ndcg"
+                elif isinstance(self, LGBMRankerMRR):
                     original_metric = "ndcg"
             # overwrite default metric by explicitly set metric
             for metric_alias in ['metric', 'metrics', 'metric_types']:
@@ -868,3 +881,19 @@ class LGBMRanker(LGBMModel):
                    + 'eval_at : list of int, optional (default=[1])\n'
                    + ' ' * 12 + 'The evaluation positions of the specified metric.\n'
                    + ' ' * 8 + _early_stop + _after_early_stop)
+
+
+class LGBMRankerMRR(LGBMRanker):
+    pass
+
+class LGBMRankerMRR2(LGBMRanker):
+    pass
+
+class LGBMRankerMRR3(LGBMRanker):
+    pass
+
+class LGBMRankerMRR4(LGBMRanker):
+    pass
+
+class LGBMRankerOpt(LGBMRanker):
+    pass

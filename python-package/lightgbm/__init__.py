@@ -15,7 +15,7 @@ import warnings
 from platform import system
 
 try:
-    from .sklearn import LGBMModel, LGBMRegressor, LGBMClassifier, LGBMRanker
+    from .sklearn import LGBMModel, LGBMRegressor, LGBMClassifier, LGBMRanker, LGBMRankerMRR, LGBMRankerMRR2, LGBMRankerMRR3, LGBMRankerMRR4
 except ImportError:
     pass
 try:
@@ -32,8 +32,9 @@ if os.path.isfile(os.path.join(dir_path, 'VERSION.txt')):
 
 __all__ = ['Dataset', 'Booster',
            'train', 'cv',
-           'LGBMModel', 'LGBMRegressor', 'LGBMClassifier', 'LGBMRanker',
-           'print_evaluation', 'record_evaluation', 'reset_parameter', 'early_stopping',
+           'LGBMModel', 'LGBMRegressor', 'LGBMClassifier', 'LGBMRanker', 'LGBMRankerMRR', 'LGBMRankerMRR2',
+           'LGBMRankerMRR3', 'LGBMRankerMRR4', 
+           'LGBMRankerOpt', 'print_evaluation', 'record_evaluation', 'reset_parameter', 'early_stopping',
            'plot_importance', 'plot_metric', 'plot_tree', 'create_tree_digraph']
 
 # REMOVEME: remove warning after 2.3.0 version release
